@@ -927,8 +927,8 @@ static void get_windows_version(void)
  */
 struct libusb_device * get_hotplug_device_node( const char* name, struct libusb_context* ctx, int online, uint8_t hcd, BOOL hotplug_poll )
 {
-	TCHAR* devId = NULL, *class = NULL, *guid = NULL, *dev_interface_path = NULL, *dev_id_path = NULL;
-	TCHAR path[MAX_PATH_LENGTH];
+	char* devId = NULL, *class = NULL, *guid = NULL, *dev_interface_path = NULL, *dev_id_path = NULL;
+	char path[MAX_PATH_LENGTH];
 	HDEVINFO devinfo;
 	DWORD dwFlag, port_nr, reg_type, size, install_state;
 	SP_DEVINFO_DATA dev_info_data = { 0 };
@@ -955,7 +955,7 @@ struct libusb_device * get_hotplug_device_node( const char* name, struct libusb_
 		goto cleanup_after_devinfo;
 	}
 
-	devId = (TCHAR*)calloc(sizeof(TCHAR), nlen);
+	devId = (char*)calloc(sizeof(char), nlen);
 	strcpy(devId, name+4);
 	for (i = nlen-5; i>-1 ; i--){
 		if (devId[i] == '#')
@@ -963,7 +963,7 @@ struct libusb_device * get_hotplug_device_node( const char* name, struct libusb_
 	}
 	devId[i] = 0;
 
-	guid = (TCHAR*)calloc(sizeof(TCHAR), nlen-i);
+	guid = (char*)calloc(sizeof(char), nlen-i);
 	strcpy(guid, name+i+5);
 	for ( i = 0; i < strlen(guid); i++ ) {
 		guid[i] = toupper(guid[i]);
@@ -976,7 +976,7 @@ struct libusb_device * get_hotplug_device_node( const char* name, struct libusb_
 	}
 
 	nlen = strlen(devId);
-	class = (TCHAR*)calloc(sizeof(TCHAR), nlen+1);
+	class = (char*)calloc(sizeof(char), nlen+1);
 	for ( i = 0; i < nlen; i++)
 		if (devId[i] =='\\')
 			break;
@@ -1001,7 +1001,7 @@ struct libusb_device * get_hotplug_device_node( const char* name, struct libusb_
 
 	found = FALSE;
 	for(i = 0; pSetupDiEnumDeviceInfo(devinfo, i, &dev_info_data); i++){
-		TCHAR buf[MAX_PATH];
+		char buf[MAX_PATH];
 
 		ret = pSetupDiGetDeviceInstanceIdA(devinfo,
 						  &dev_info_data,
