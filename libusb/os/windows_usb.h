@@ -43,6 +43,9 @@ typedef LPSTR PTSTR;
 #endif
 #endif
 
+#if !defined(HWND_MESSAGE)
+#define HWND_MESSAGE ((HWND)(-3))
+#endif
 
 #if defined(_MSC_VER)
 // disable /W4 MSVC warnings that are benign
@@ -75,6 +78,7 @@ extern char *_strdup(const char *strSource);
 #endif
 
 #define MAX_CTRL_BUFFER_LENGTH      4096
+#define MAX_USB_HOST_CONTROLLERS    32
 #define MAX_USB_DEVICES             256
 #define MAX_USB_STRING_LENGTH       128
 #define MAX_HID_REPORT_SIZE         1024
@@ -230,6 +234,8 @@ struct hid_device_priv {
 
 typedef struct libusb_device_descriptor USB_DEVICE_DESCRIPTOR, *PUSB_DEVICE_DESCRIPTOR;
 struct windows_device_priv {
+	DWORD devinst;                      // device instance
+	char *device_id;                    // device instance id string
 	uint8_t depth;						// distance to HCD
 	uint8_t port;						// port number on the hub
 	uint8_t active_config;
@@ -300,7 +306,6 @@ DLL_DECLARE_PREFIXED(WINAPI, BOOL, p, IsWow64Process, (HANDLE, PBOOL));
 /* SetupAPI dependencies */
 DLL_DECLARE_PREFIXED(WINAPI, HDEVINFO, p, SetupDiGetClassDevsA, (const GUID*, PCSTR, HWND, DWORD));
 DLL_DECLARE_PREFIXED(WINAPI, HDEVINFO, p, SetupDiGetClassDevsExA, (const GUID*, PCSTR, HWND, DWORD, HDEVINFO, PCTSTR, PVOID));
-DLL_DECLARE_PREFIXED(WINAPI, BOOL, p, SetupDiGetDeviceInstanceIdA, (HDEVINFO, PSP_DEVINFO_DATA, PTSTR, DWORD, PDWORD));
 DLL_DECLARE_PREFIXED(WINAPI, BOOL, p, SetupDiEnumDeviceInfo, (HDEVINFO, DWORD, PSP_DEVINFO_DATA));
 DLL_DECLARE_PREFIXED(WINAPI, BOOL, p, SetupDiEnumDeviceInterfaces, (HDEVINFO, PSP_DEVINFO_DATA,
 			const GUID*, DWORD, PSP_DEVICE_INTERFACE_DATA));
@@ -314,6 +319,12 @@ DLL_DECLARE_PREFIXED(WINAPI, HKEY, p, SetupDiOpenDeviceInterfaceRegKey, (HDEVINF
 DLL_DECLARE_PREFIXED(WINAPI, LONG, p, RegQueryValueExW, (HKEY, LPCWSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD));
 DLL_DECLARE_PREFIXED(WINAPI, LONG, p, RegCloseKey, (HKEY));
 
+/* User32 dependencies */
+DLL_DECLARE_PREFIXED(WINAPI, ATOM, p, RegisterClassExA, (const WNDCLASSEXA*));
+DLL_DECLARE_PREFIXED(WINAPI, HDEVNOTIFY, p, RegisterDeviceNotificationA, (HANDLE, LPVOID, DWORD));
+DLL_DECLARE_PREFIXED(WINAPI, BOOL, p, UnregisterDeviceNotification, (HDEVNOTIFY)); 
+DLL_DECLARE_PREFIXED(WINAPI, BOOL, p, UnregisterClassA, (LPCSTR, HINSTANCE));
+
 /*
  * Windows DDK API definitions. Most of it copied from MinGW's includes
  */
@@ -324,6 +335,13 @@ typedef RETURN_TYPE CONFIGRET;
 
 #define CR_SUCCESS                              0x00000000
 #define CR_NO_SUCH_DEVNODE                      0x0000000D
+
+#define DEVICE_NOTIFY_WINDOW_HANDLE             0x00000000
+#define DEVICE_NOTIFY_ALL_INTERFACE_CLASSES     0x00000004
+
+#define DBT_DEVICEARRIVAL                       0x8000
+#define DBT_DEVICEREMOVECOMPLETE                0x8004
+#define DBT_DEVTYP_DEVICEINTERFACE              0x00000005
 
 #define USB_DEVICE_DESCRIPTOR_TYPE              LIBUSB_DT_DEVICE
 #define USB_CONFIGURATION_DESCRIPTOR_TYPE       LIBUSB_DT_CONFIG
@@ -397,6 +415,7 @@ DLL_DECLARE(WINAPI, CONFIGRET, CM_Get_Parent, (PDEVINST, DEVINST, ULONG));
 DLL_DECLARE(WINAPI, CONFIGRET, CM_Get_Child, (PDEVINST, DEVINST, ULONG));
 DLL_DECLARE(WINAPI, CONFIGRET, CM_Get_Sibling, (PDEVINST, DEVINST, ULONG));
 DLL_DECLARE(WINAPI, CONFIGRET, CM_Get_Device_IDA, (DEVINST, PCHAR, ULONG, ULONG));
+DLL_DECLARE(WINAPI, CONFIGRET, CM_Get_Device_ID_Size, (PULONG, DEVINST, ULONG));
 
 #define IOCTL_USB_GET_HUB_CAPABILITIES_EX \
   CTL_CODE( FILE_DEVICE_USB, USB_GET_HUB_CAPABILITIES_EX, METHOD_BUFFERED, FILE_ANY_ACCESS)
@@ -604,6 +623,14 @@ typedef struct USB_HUB_CAPABILITIES_EX {
 } USB_HUB_CAPABILITIES_EX, *PUSB_HUB_CAPABILITIES_EX;
 
 #pragma pack(pop)
+
+typedef struct DEV_BROADCAST_DEVICEINTERFACE_A {
+	DWORD dbcc_size;
+	DWORD dbcc_devicetype;
+	DWORD dbcc_reserved;
+	GUID  dbcc_classguid;
+	char  dbcc_name[1];
+} DEV_BROADCAST_DEVICEINTERFACE_A, *PDEV_BROADCAST_DEVICEINTERFACE_A;
 
 /* winusb.dll interface */
 
