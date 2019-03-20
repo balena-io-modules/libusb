@@ -240,11 +240,17 @@ static usb_device_t **darwin_device_from_service (io_service_t service)
   usb_device_t **device;
   kern_return_t result;
   SInt32 score;
+  const int max_retries = 5;
 
-  result = IOCreatePlugInInterfaceForService(service, kIOUSBDeviceUserClientTypeID,
-                                             kIOCFPlugInInterfaceID, &plugInInterface,
-                                             &score);
-
+  for (int count = 0; count < max_retries; count++) {
+    result = IOCreatePlugInInterfaceForService(service, kIOUSBDeviceUserClientTypeID,
+                                               kIOCFPlugInInterfaceID, &plugInInterface,
+                                               &score);
+    if (kIOReturnSuccess == result && plugInInterface) {
+      break;
+    }
+  }
+  
   if (kIOReturnSuccess != result || !plugInInterface) {
     usbi_dbg ("could not set up plugin for service: %s\n", darwin_error_str (result));
     return NULL;
